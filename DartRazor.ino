@@ -172,7 +172,7 @@
 // Sensor data output interval in milliseconds
 // This may not work, if faster than 20ms (=50Hz)
 // Code is tuned for 20ms, so better leave it like that
-#define OUTPUT__DATA_INTERVAL 20  // in milliseconds
+#define OUTPUT__DATA_INTERVAL 40  // in milliseconds
 
 // Output mode definitions (do not change)
 #define OUTPUT__MODE_CALIBRATE_SENSORS 0 // Outputs sensor min/max values as text for manual calibration
