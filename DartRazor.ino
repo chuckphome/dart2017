@@ -306,6 +306,25 @@ const float magn_ellipsoid_transform[3][3] = {{0.902, -0.00354, 0.000636}, {-0.0
 
 #include <Wire.h>
 
+// set the scale of gravity
+#define MAX_G 16
+#if (MAX_G == 2)
+  #define GRAVITY 256.0f // "1G reference" used for DCM filter and accelerometer calibration
+  #define ACC_CODE  8
+#elif (MAX_G == 4)  
+  #define GRAVITY 128.0f // "1G reference" used for DCM filter and accelerometer calibration
+  #define ACC_CODE  9
+#elif (MAX_G == 8)  
+  #define GRAVITY 64.0f // "1G reference" used for DCM filter and accelerometer calibration
+  #define ACC_CODE  0xA
+#elif (MAX_G == 16)  
+  #define GRAVITY 32.0f // "1G reference" used for DCM filter and accelerometer calibration
+  #define ACC_CODE  0xB
+#else
+  #ERROR, invalid MAX_G
+#endif
+
+
 // Sensor calibration scale and offset values
 #define ACCEL_X_OFFSET ((ACCEL_X_MIN + ACCEL_X_MAX) / 2.0f)
 #define ACCEL_Y_OFFSET ((ACCEL_Y_MIN + ACCEL_Y_MAX) / 2.0f)
@@ -334,7 +353,6 @@ const float magn_ellipsoid_transform[3][3] = {{0.902, -0.00354, 0.000636}, {-0.0
 
 // Stuff
 #define STATUS_LED_PIN 13  // Pin number of status LED
-#define GRAVITY 256.0f // "1G reference" used for DCM filter and accelerometer calibration
 #define TO_RAD(x) (x * 0.01745329252)  // *pi/180
 #define TO_DEG(x) (x * 57.2957795131)  // *180/pi
 

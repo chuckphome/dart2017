@@ -31,7 +31,7 @@ void Accel_Init()
   delay(5);
   Wire.beginTransmission(ACCEL_ADDRESS);
   WIRE_SEND(0x31);  // Data format register
-  WIRE_SEND(0x08);  // Set to full resolution
+  WIRE_SEND(ACC_CODE);  // Sets max scale
   Wire.endTransmission();
   delay(5);
   
