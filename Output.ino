@@ -1,5 +1,22 @@
 /* This file is part of the Razor AHRS Firmware */
 
+// include the SD library:
+#include <SPI.h>
+#include <SD.h>
+
+// set up variables using the SD utility library functions:
+// Sd2Card card;
+// SdVolume volume;
+// SdFile root;
+File dataFile;
+
+// The Sparkfun microSD shield uses pin 8 for CS
+const int chipSelect = 8;
+
+unsigned long ms;
+unsigned long loopCount = 0;
+int failCount = 0;
+
 // Output angles: yaw, pitch, roll
 void output_angles()
 {
@@ -13,10 +30,36 @@ void output_angles()
   }
   else if (output_format == OUTPUT__FORMAT_TEXT)
   {
-    Serial.print("#YPR=");
+    if (!dataFile && (failCount <4))
+    {
+      if (!SD.begin(chipSelect)) 
+        Serial.println("Card failed, or not present");
+      
+      dataFile = SD.open("datalog.txt", FILE_WRITE);
+      if (!dataFile)
+      {
+        Serial.println("error opening datalog.txt");
+        failCount++;
+      }
+    }
+    if ((loopCount %SERIALDELAY) == 0)
+    {
+      Serial.print(",\t#YPR=,");
     Serial.print(TO_DEG(yaw)); Serial.print(",");
     Serial.print(TO_DEG(pitch)); Serial.print(",");
-    Serial.print(TO_DEG(roll)); Serial.println();
+      Serial.print(TO_DEG(roll));
+  }
+    if (dataFile)
+    {
+      dataFile.print(",\t#YPR=,");
+      dataFile.print(TO_DEG(yaw));   dataFile.print(",");
+      dataFile.print(TO_DEG(pitch)); dataFile.print(",");
+      dataFile.print(TO_DEG(roll));
+
+    }
+    else
+      Serial.println("No Datafile!");
+    
   }
 }
 
@@ -71,20 +114,39 @@ void output_calibration(int calibration_sensor)
 
 void output_sensors_text(char raw_or_calibrated)
 {
-  Serial.print("#A-"); Serial.print(raw_or_calibrated); Serial.print('=');
+  if ((loopCount %SERIALDELAY) == 0)
+  {
+    Serial.print(", #A-"); Serial.print(raw_or_calibrated); Serial.print(',');
   Serial.print(accel[0]); Serial.print(",");
   Serial.print(accel[1]); Serial.print(",");
-  Serial.print(accel[2]); Serial.println();
+    Serial.print(accel[2]); Serial.print(",");
 
-  Serial.print("#M-"); Serial.print(raw_or_calibrated); Serial.print('=');
+    Serial.print(" #M-"); Serial.print(raw_or_calibrated); Serial.print(',');
   Serial.print(magnetom[0]); Serial.print(",");
   Serial.print(magnetom[1]); Serial.print(",");
-  Serial.print(magnetom[2]); Serial.println();
+    Serial.print(magnetom[2]); Serial.print(",");
 
-  Serial.print("#G-"); Serial.print(raw_or_calibrated); Serial.print('=');
+    Serial.print(" #G-"); Serial.print(raw_or_calibrated); Serial.print(',');
   Serial.print(gyro[0]); Serial.print(",");
   Serial.print(gyro[1]); Serial.print(",");
-  Serial.print(gyro[2]); Serial.println();
+    Serial.print(gyro[2]); Serial.print(",");
+  }
+    if (dataFile)
+    {
+      dataFile.print(", #A,");
+      dataFile.print(accel[0]); dataFile.print(",");
+      dataFile.print(accel[1]); dataFile.print(",");
+      dataFile.print(accel[2]);  dataFile.print(",");
+      dataFile.print(" #M,");
+      dataFile.print(magnetom[0]); dataFile.print(",");
+      dataFile.print(magnetom[1]); dataFile.print(",");
+      dataFile.print(magnetom[2]); dataFile.print(",");
+      dataFile.print(" #G,");
+      dataFile.print(gyro[0]); dataFile.print(",");
+      dataFile.print(gyro[1]); dataFile.print(",");
+      dataFile.print(gyro[2]); dataFile.print(",");
+    }
+
 }
 
 void output_sensors_binary()
@@ -127,6 +189,10 @@ void output_sensors()
       compensate_sensor_errors();
       output_sensors_text('C');
     }
+  }
+  else
+  {
+    output_sensors_text('C');
   }
 }
 

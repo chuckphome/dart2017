@@ -352,9 +352,13 @@ const float magn_ellipsoid_transform[3][3] = {{0.902, -0.00354, 0.000636}, {-0.0
 #define Ki_YAW 0.00002f
 
 // Stuff
-#define STATUS_LED_PIN 13  // Pin number of status LED
 #define TO_RAD(x) (x * 0.01745329252)  // *pi/180
 #define TO_DEG(x) (x * 57.2957795131)  // *180/pi
+
+// LED's
+#define STATUS_LED_PIN 13  // Pin number of status LED
+#define YELLOW_LED_PIN 7   // Pin number of status LED
+#define RED_LED_PIN 6   // Pin number of status LED
 
 // Sensor variables
 float accel[3];  // Actually stores the NEGATED acceleration (equals gravity, if board not moving).
@@ -504,16 +508,25 @@ char readChar()
   while (Serial.available() < 1) { } // Block
   return Serial.read();
 }
+#include <SD.h>
+extern File dataFile;
+extern unsigned long ms;
+extern unsigned long loopCount;
 
+int ledState = 0;
 
+#define SERIALDELAY 50  // how many to skip on the serial console before printing.
 
 void setup()
 {
   // Init serial output
   Serial.begin(OUTPUT__BAUD_RATE);
   
-  // Init status LED
+  // Init status LEDs
   pinMode (STATUS_LED_PIN, OUTPUT);
+  pinMode (RED_LED_PIN, OUTPUT);
+  pinMode (YELLOW_LED_PIN, OUTPUT);
+
   digitalWrite(STATUS_LED_PIN, LOW);
 
   // Init sensors
@@ -533,7 +546,9 @@ void setup()
 #else
   turn_output_stream_on();
 #endif
+setup_atmo();
 }
+
 
 // Main loop
 void loop()
@@ -635,10 +650,12 @@ void loop()
   }
 
   // Time to read the sensors again?
-  if((millis() - timestamp) >= OUTPUT__DATA_INTERVAL)
+  ms = millis();
+
+  if((ms - timestamp) >= OUTPUT__DATA_INTERVAL)
   {
     timestamp_old = timestamp;
-    timestamp = millis();
+    timestamp = ms;
     if (timestamp > timestamp_old)
       G_Dt = (float) (timestamp - timestamp_old) / 1000.0f; // Real time of loop run. We use this on the DCM algorithm (gyro integration time)
     else G_Dt = 0;
@@ -646,6 +663,17 @@ void loop()
     // Update sensor readings
     read_sensors();
 
+    loopCount++;
+    if ((loopCount %SERIALDELAY) == 0)
+    {
+      Serial.print("ms,");  Serial.print(ms);
+      Serial.print(", loopCount,");Serial.print(loopCount);
+    }
+    if (dataFile)
+    {
+      dataFile.print("ms,");  dataFile.print(ms);
+      dataFile.print(", loopCount,");dataFile.print(loopCount);
+    }
     if (output_mode == OUTPUT__MODE_CALIBRATE_SENSORS)  // We're in calibration mode
     {
       check_reset_calibration_session();  // Check if this session needs a reset
@@ -663,20 +691,63 @@ void loop()
       Drift_correction();
       Euler_angles();
       
-      if (output_stream_on || output_single_on) output_angles();
+      if (output_stream_on || output_single_on) 
+      {
+        output_angles();
+        output_sensors();
+      }
     }
     else  // Output sensor values
     {      
-      if (output_stream_on || output_single_on) output_sensors();
+      if (output_stream_on || output_single_on) 
+      {
+        output_sensors();
+      }
     }
     
     output_single_on = false;
     
+    log_atmo();
+
+    // Ensure the data is written to the SD before power is lost.
+    if ((loopCount %100) == 0)
+      dataFile.flush();
+     
 #if DEBUG__PRINT_LOOP_TIME == true
     Serial.print("loop time (ms) = ");
     Serial.println(millis() - timestamp);
 #endif
-  }
+
+
+  #if 1
+    #define LED_DELAY 15
+
+    // flash the LED
+    if ((loopCount % LED_DELAY) == 0)
+    {   
+       pinMode (STATUS_LED_PIN, OUTPUT);
+
+       if (ledState == 0)
+       { 
+         ledState = 1;
+         digitalWrite(STATUS_LED_PIN, HIGH);
+         digitalWrite(RED_LED_PIN, HIGH);
+         digitalWrite(YELLOW_LED_PIN, LOW);
+
+         //  Serial.println("High");
+       } 
+       else
+       { 
+         ledState = 0;
+         digitalWrite(STATUS_LED_PIN, LOW);
+         digitalWrite(RED_LED_PIN, LOW);
+         digitalWrite(YELLOW_LED_PIN, HIGH);
+         //  Serial.println("Low");
+       } 
+    }   
+  #endif  
+
+  }     
 #if DEBUG__PRINT_LOOP_TIME == true
   else
   {
